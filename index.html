@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - loader - ttf</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+	</head>
+	<body>
+		<div id="info">
+			<a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> - TTFLoader using opentype by gero3
+			<br/>type to enter new text, drag to spin the text
+		</div>
+
+		
+		<script src="./opentype.min.js"></script>
+		<script src="./three.min.js"></script>
+		<script src="./TTFLoader.js"></script>
+		<script src="./PLYLoader.js"></script>
+		<script src="./scoreoutputer.min.js"></script>
+
+		<script>
+			
+			var fontttf = './OPPOSans-R.ttf';
+
+			var so = new ScoreOutputer("110598050");
+			so.installCSS(function(){
+				so.addChild("創建場景", 2, true);
+				so.addChild("讀取字型檔", 2, true);
+				so.addChild("將地支以圓圈排列", 2, true);
+				so.addChild("滑鼠點擊 12 地支分別跳轉網頁", 1, true);
+				so.addChild("顯示 \"高等計算機圖形作業\"", 1, true);
+				so.addChild("時鐘效果", 1, true);
+				so.addChild("任何 ply 格式模型", 1, true);
+				//產生自評表，參數如下所示
+				so.renderModal(
+					//1. 自評表插入位置 (預設 document.body)
+					document.body,
+					//2. 自評表背景 (預設紅色)
+					'rgba(100,45,58,1)', 
+					//3. 自評表文字顏色 (預設白色)
+					'white', 
+					//4. 自評表文字大小 (預設 14pt)
+					'15pt', 
+					//5. 自評表 checkbox 文字大小 (預設多少忘了)
+					'15px', 
+					//6. 自評表標題 (預設 "自我評分表")
+					dialogTitle='自我評分表 (助教測試用)'
+				);
+
+				var header = document.body.appendChild(document.createElement('Div'));
+				header.style.position='absolute';
+				header.style.top = '0px';
+				//設定下載按鈕 <-- 一定要呼叫這個函數，不然沒有下載功能
+				so.installDownloadBtn();
+				//產生 "開啟自評表按鈕"
+				so.renderBtn(
+					//自評表按鈕插入位置
+					header,
+					//自評表按鈕文字
+					"開啟自評表"
+				);
+			});
+			
+
+			let container;
+			let camera, cameraTarget, scene, renderer;
+			let group, group2, textMesh1, textMesh2 = [], textGeo, textGeo2 = [], clockCircle=[];
+			let material, materialLine, materialLine1, materialLine2;
+			let firstLetter = true;
+			var currentTime, hour, minute, second;
+			var secondLine, minuteLine, hourLine;
+			var materialMesh, meshPLY;
+			const raycaster = new THREE.Raycaster();
+			const mouse = new THREE.Vector2();
+
+			var text = '高等計算機圖形作業';
+			var text_list = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥'];
+			const height = 20,
+				size = 40,
+				hover = 30,
+				curveSegments = 4,
+				bevelThickness = 2,
+				bevelSize = 1.5;
+
+			let font = null;
+			const mirror = true;
+
+			let targetRotation = 0;
+			let targetRotationY = 0;
+			let targetRotationOnPointerDown = 0;
+			let targetRotationOnPointerDowny = 0;
+
+			let pointerX = 0;
+			let pointerY = 0;
+			let pointerXOnPointerDown = 0;
+			let pointerYOnPointerDown = 0;
+
+			let windowHalfX = window.innerWidth / 2;
+			let windowHalfY = window.innerHeight / 2;
+			console.log(THREE.PLYLoader);
+			init();
+			animate();
+
+			function init() {
+
+				container = document.createElement( 'div' );
+				document.body.appendChild( container );
+
+				// CAMERA
+
+				camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 1500 );
+				camera.position.set( 0, 400, 700 );
+
+				cameraTarget = new THREE.Vector3( 0, 150, 0 );
+
+				// SCENE
+
+				scene = new THREE.Scene();
+				scene.background = new THREE.Color( 0x000000 );
+				scene.fog = new THREE.Fog( 0x000000, 250, 1400 );
+
+				// LIGHTS
+
+				const dirLight = new THREE.DirectionalLight( 0xffffff, 0.125 );
+				dirLight.position.set( 0, 0, 1 ).normalize();
+				scene.add( dirLight );
+
+				const pointLight = new THREE.PointLight( 0xffffff, 1.5 );
+				pointLight.position.set( 0, 100, 90 );
+				// pointLight.color.setHSL( Math.random(), 1, 0.5 );
+				scene.add( pointLight );
+
+				// PLY
+
+				const loaderPLY = new THREE.PLYLoader();
+				loaderPLY.load( './Dragon-ply.ply', function ( geometryPLY ) {
+
+					geometryPLY.computeVertexNormals();
+
+					materialMesh = new THREE.MeshStandardMaterial( { color: 0x0055ff, flatShading: true } );
+					meshPLY = new THREE.Mesh( geometryPLY, materialMesh );
+					meshPLY.type = 'left';
+					meshPLY.position.x = 0;
+					meshPLY.position.y = 100;
+					meshPLY.position.z = 0.3;
+					meshPLY.rotation.x = - Math.PI / 2;
+					meshPLY.scale.multiplyScalar( 1 );
+
+					meshPLY.castShadow = true;
+					meshPLY.receiveShadow = true;
+
+					scene.add( meshPLY );
+				} );
+
+				// MATERIAL
+
+				material = new THREE.MeshPhongMaterial( { color: 0xff00ff, flatShading: true } );
+				materialLine = new THREE.LineBasicMaterial( { color: 0xff0000, linewidth: 1 } );
+				materialLine1 = new THREE.LineBasicMaterial( { color: 0x00ff00, linewidth: 1 } );
+				materialLine2 = new THREE.LineBasicMaterial( { color: 0x0000ff, linewidth: 1 } );
+				group = new THREE.Group();
+				group.position.y = 100;
+
+				scene.add( group );
+
+				group2 = new THREE.Group();
+				group2.position.y = 300;
+				group2.position.z = -150;
+
+				scene.add( group2 );
+				const loader = new THREE.TTFLoader();
+
+				loader.load( fontttf, function ( json ) {
+				console.log(json)
+					font = new THREE.Font( json );
+					createText();
+					createText_Clock();
+
+				} );
+
+				const plane = new THREE.Mesh(
+					new THREE.PlaneGeometry( 1000, 1000 ),
+					new THREE.MeshBasicMaterial( { color: 0xffffff, opacity: 0.5, transparent: true } )
+				);
+				plane.position.y = 100;
+				plane.rotation.x = - Math.PI / 2;
+				plane.rotation.z = -5.4;
+				scene.add( plane );
+
+				const circle = new THREE.Mesh(
+					new THREE.CircleGeometry( 180, 300 ),
+					new THREE.MeshBasicMaterial( { color: 0xffffff, opacity: 0.5, transparent: true } )
+				);
+
+				group2.add(circle);
+
+
+				// RENDERER
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				container.appendChild( renderer.domElement );
+
+				// EVENTS
+
+				runClock();
+				container.style.touchAction = 'none';
+				container.addEventListener( 'pointerdown', onPointerDown );
+
+				document.addEventListener( 'keypress', onDocumentKeyPress );
+				document.addEventListener( 'keydown', onDocumentKeyDown );
+
+				window.addEventListener( 'resize', onWindowResize );
+
+				document.addEventListener( 'mousemove', onMouseMove, false );
+
+
+			}
+
+			function onWindowResize() {
+
+				windowHalfX = window.innerWidth / 2;
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+			}
+
+			function onDocumentKeyDown( event ) {
+
+				if ( firstLetter ) {
+
+					firstLetter = false;
+					text = '';
+					text_list = [];
+
+				}
+
+				const keyCode = event.keyCode;
+
+				// backspace
+
+				if ( keyCode === 8 ) {
+
+					event.preventDefault();
+
+					text = text.substring( 0, text.length - 1 );
+					text_list = text_list.substring( 0, text_list.length - 1 );
+					refreshText();
+
+					return false;
+
+				}
+
+			}
+
+			function onDocumentKeyPress( event ) {
+
+				const keyCode = event.which;
+
+				// backspace
+
+				if ( keyCode === 8 ) {
+
+					event.preventDefault();
+
+				} else {
+
+					const ch = String.fromCharCode( keyCode );
+					text += ch;
+
+					refreshText();
+
+				}
+
+			}
+
+			function createText() {
+
+				textGeo = new THREE.TextGeometry( text, {
+
+					font: font,
+
+					size: size,
+					height: height,
+					curveSegments: curveSegments,
+
+					bevelThickness: bevelThickness,
+					bevelSize: bevelSize,
+					bevelEnabled: true
+
+				} );
+
+				textGeo.computeBoundingBox();
+				textGeo.computeVertexNormals();
+
+				const centerOffset = - 0.5 * ( textGeo.boundingBox.max.x - textGeo.boundingBox.min.x );
+
+				textMesh1 = new THREE.Mesh( textGeo, material );
+
+				textMesh1.position.x = centerOffset;
+				textMesh1.position.y = hover;
+				textMesh1.position.z = 450;
+
+				textMesh1.rotation.x = -0.5 * Math.PI;
+				textMesh1.rotation.y = Math.PI * 2;
+
+				group.add( textMesh1 );
+
+			}
+
+			function createText_Clock() {
+
+				var dotX = 15;
+				var dotY = 10;
+				var stard = Math.PI / 2;
+				var radius = 150;
+				var angle = ( 360 / 12 ) * Math.PI / 180;
+				for ( var i = 0; i < 12; i++) {
+
+					clockCircle[i] = new THREE.Mesh(
+							new THREE.CircleGeometry( 25, 300 ),
+							new THREE.MeshBasicMaterial( { color: 0xA6FFFF, opacity: 0.5, transparent: true } )
+					);
+		
+					clockCircle[i].url = 'https://NTUT-CG-Lab.github.io/cg2021f-hw' + i.toString().padStart(2,'0') + '-JtKidding';
+					clockCircle[i].type = 'circle';
+					clockCircle[i].position.x = Math.cos( (-stard + angle * i) ) * radius;
+					clockCircle[i].position.y = Math.sin( (stard + angle * i) ) * radius;
+					clockCircle[i].position.z = 2;
+					group2.add(clockCircle[i]);
+
+					textGeo2[i] = new THREE.TextGeometry( text_list[i], {
+
+					font: font,
+
+					size: 22,
+					height: 10,
+					curveSegments: curveSegments,
+
+					bevelThickness: bevelThickness,
+					bevelSize: bevelSize,
+					bevelEnabled: true
+
+					} );
+
+					textGeo2[i].computeBoundingBox();
+					textGeo2[i].computeVertexNormals();
+
+					textMesh2[i] = new THREE.Mesh( textGeo2[i], material );
+
+					textMesh2[i].position.x = Math.cos( (-stard + angle * i) ) * radius-dotX;
+					textMesh2[i].position.y = Math.sin( (stard + angle * i) ) * radius-dotY;
+					group2.add( textMesh2[i] );
+				}
+				
+			}
+
+			function refreshText() {
+
+				group.remove( textMesh1 );
+				for ( var i = 0 ; i < textMesh2.length; i++) {
+					group2.remove( textMesh2[i] );
+				}
+
+				if ( ! text ) return;
+
+				createText();
+				createText_Clock();
+				
+			}
+
+			function onPointerDown( event ) {
+
+				if ( event.isPrimary === false ) return;
+
+				pointerXOnPointerDown = event.clientX - windowHalfX;
+				pointerYOnPointerDown = event.clientY - windowHalfY;
+				targetRotationOnPointerDown = targetRotation;
+				targetRotationOnPointerDownY = targetRotationY;
+
+				const intersects = raycaster.intersectObjects( group2.children );
+
+				for ( let i = 0; i < intersects.length; i ++ ) {
+
+					if (intersects[i].object.type === 'circle'){
+
+						intersects[i].object.material.color.set(0Xffff00);
+					}
+
+				}
+
+				document.addEventListener( 'pointermove', onPointerMove );
+				document.addEventListener( 'pointerup', onPointerUp );
+
+			}
+
+			function onPointerMove( event ) {
+
+				if ( event.isPrimary === false ) return;
+
+				pointerX = event.clientX - windowHalfX;
+				pointerY = event.clientY - windowHalfY;
+				targetRotation = targetRotationOnPointerDown + ( pointerX - pointerXOnPointerDown ) * 0.02;
+				targetRotationY = targetRotationOnPointerDownY + ( pointerY - pointerYOnPointerDown ) * 0.02;
+
+				const intersects = raycaster.intersectObjects( group2.children );
+
+				for ( let i = 0; i < intersects.length; i ++ ) {
+
+					if (intersects[i].object.type === 'circle'){
+
+						intersects[i].object.material.color.set(0xA6FFFF);
+					}
+
+				}
+
+			}
+
+			function onPointerUp() {
+
+				if ( event.isPrimary === false ) return;
+
+				// calculate objects intersecting the picking ray
+				const intersects = raycaster.intersectObjects( group2.children );
+
+				for ( let i = 0; i < intersects.length; i ++ ) {
+
+					if (intersects[i].object.type === 'circle'){
+
+						intersects[i].object.material.color.set(0xA6FFFF);
+						window.open(intersects[i].object.url, "_blank").focus();
+					}
+
+				}
+
+				document.removeEventListener( 'pointermove', onPointerMove );
+				document.removeEventListener( 'pointerup', onPointerUp );
+				
+			}
+
+			function animate() {
+
+				currentTime = new Date();
+				hour = (currentTime.getHours() % 12) * Math.PI / 6;
+				minute = currentTime.getMinutes() * Math.PI / 30;
+				second = currentTime.getSeconds() * Math.PI / 30;
+				
+				secondLine.rotation.z = -second;
+				minuteLine.rotation.z = -minute;
+				hourLine.rotation.z = -hour;
+				if (meshPLY) {
+					if (meshPLY.type === 'left') {
+
+						meshPLY.position.x -= 5;
+						if (meshPLY.position.x < -300 ) {
+							meshPLY.type = 'right';
+						}
+					} else {
+						meshPLY.position.x += 5;
+						if (meshPLY.position.x > 300 ) {
+							meshPLY.type = 'left';
+						}
+					}
+
+				}
+				requestAnimationFrame( animate );
+				scene.rotation.x = ( targetRotationY - group.rotation.x ) * 0.05;
+				scene.rotation.y = ( targetRotation - group.rotation.y ) * 0.05;
+				camera.lookAt( cameraTarget );
+
+				renderer.render( scene, camera );
+
+			}
+
+			function onMouseMove( event ) {
+
+				mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+				mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+				raycaster.setFromCamera( mouse, camera );
+			}
+
+			function runClock() {
+				
+				var secondPoints = [];
+				secondPoints.push( new THREE.Vector3( 0, 0, 5 ) );
+				secondPoints.push( new THREE.Vector3( 0, 100, 5 ) );
+				var geometry1 = new THREE.BufferGeometry().setFromPoints( secondPoints );
+
+				var minutePoints = [];
+				minutePoints.push( new THREE.Vector3( 0, 0, 5 ) );
+				minutePoints.push( new THREE.Vector3( 0, 80, 5 ) );
+				var geometry2 = new THREE.BufferGeometry().setFromPoints( minutePoints );
+
+				var hourPoints = [];
+				hourPoints.push( new THREE.Vector3( 0, 0, 5 ) );
+				hourPoints.push( new THREE.Vector3( 0, 50, 5 ) );
+				var geometry3 = new THREE.BufferGeometry().setFromPoints( hourPoints );
+
+				secondLine = new THREE.Line( geometry1, materialLine);
+				minuteLine = new THREE.Line( geometry2, materialLine1);
+				hourLine = new THREE.Line( geometry3, materialLine2);
+				
+				group2.add(secondLine);
+				group2.add(minuteLine);
+				group2.add(hourLine);
+			}
+
+		</script>
+
+	</body>
+</html>
