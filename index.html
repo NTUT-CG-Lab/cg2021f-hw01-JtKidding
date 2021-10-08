@@ -70,7 +70,7 @@
 			let firstLetter = true;
 			var currentTime, hour, minute, second;
 			var secondLine, minuteLine, hourLine;
-			var materialMesh, meshPLY;
+			var materialMesh, meshPLY, PLYspeedX = 0, PLYspeedY = 0;
 			const raycaster = new THREE.Raycaster();
 			const mouse = new THREE.Vector2();
 
@@ -96,9 +96,11 @@
 			let pointerXOnPointerDown = 0;
 			let pointerYOnPointerDown = 0;
 
+			var BBox, planeGeo, planeMinX, planeMaxX, planeMinY, planeMaxY;
+
 			let windowHalfX = window.innerWidth / 2;
 			let windowHalfY = window.innerHeight / 2;
-			console.log(THREE.PLYLoader);
+			// console.log(THREE.PLYLoader);
 			init();
 			animate();
 
@@ -140,7 +142,8 @@
 
 					materialMesh = new THREE.MeshStandardMaterial( { color: 0x0055ff, flatShading: true } );
 					meshPLY = new THREE.Mesh( geometryPLY, materialMesh );
-					meshPLY.type = 'left';
+					PLYspeedX = -5;
+					PLYspeedY = 6;
 					meshPLY.position.x = 0;
 					meshPLY.position.y = 100;
 					meshPLY.position.z = 0.3;
@@ -172,7 +175,7 @@
 				const loader = new THREE.TTFLoader();
 
 				loader.load( fontttf, function ( json ) {
-				console.log(json)
+				// console.log(json)
 					font = new THREE.Font( json );
 					createText();
 					createText_Clock();
@@ -185,8 +188,16 @@
 				);
 				plane.position.y = 100;
 				plane.rotation.x = - Math.PI / 2;
-				plane.rotation.z = -5.4;
 				scene.add( plane );
+
+				BBox = plane.geometry;
+				BBox.computeBoundingBox();
+				planeMinX = BBox.boundingBox.min.x;
+				planeMaxX = BBox.boundingBox.max.x;
+				planeMinY = BBox.boundingBox.min.y;
+				planeMaxY = BBox.boundingBox.max.y;
+				console.log(planeMinX, planeMaxX, planeMinY, planeMaxY);
+				console.log(BBox);
 
 				const circle = new THREE.Mesh(
 					new THREE.CircleGeometry( 180, 300 ),
@@ -414,9 +425,11 @@
 					if (intersects[i].object.type === 'circle'){
 
 						intersects[i].object.material.color.set(0xA6FFFF);
+						
 					}
 
 				}
+
 
 			}
 
@@ -453,18 +466,18 @@
 				minuteLine.rotation.z = -minute;
 				hourLine.rotation.z = -hour;
 				if (meshPLY) {
-					if (meshPLY.type === 'left') {
+					meshPLY.position.x += PLYspeedX;
+					meshPLY.position.z += PLYspeedY;
 
-						meshPLY.position.x -= 5;
-						if (meshPLY.position.x < -300 ) {
-							meshPLY.type = 'right';
-						}
-					} else {
-						meshPLY.position.x += 5;
-						if (meshPLY.position.x > 300 ) {
-							meshPLY.type = 'left';
-						}
+					if (meshPLY.position.x < -400) {
+						PLYspeedX = 1 * ( (Math.random() % 10) + 2);
 					}
+					if (meshPLY.position.x > 400) PLYspeedX = -1 * ( (Math.random() % 10) + 4);
+					if (meshPLY.position.z < -400) PLYspeedY = 1 * ( (Math.random() % 15) + 6);
+					if (meshPLY.position.z > 400) PLYspeedY = -1 * ( (Math.random() % 15) + 8);
+
+					console.log('x ', meshPLY.position.x);
+					console.log('y ', meshPLY.position.z);
 
 				}
 				requestAnimationFrame( animate );
@@ -476,8 +489,19 @@
 
 			}
 
+			
 			function onMouseMove( event ) {
 
+				const intersects = raycaster.intersectObjects( group2.children );
+
+				if (intersects.length > 0){
+					document.body.style.cursor = 'pointer';
+				} else {
+					document.body.style.cursor = 'default';
+				}
+
+				
+				// mouse.container.style.cursor = 'pointer';
 				mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
 				mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
 				raycaster.setFromCamera( mouse, camera );
