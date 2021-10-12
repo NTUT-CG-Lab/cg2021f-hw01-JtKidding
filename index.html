@@ -403,7 +403,7 @@
 					}
 
 				}
-
+				document.addEventListener( 'mousemove', onMouseMove);
 				document.addEventListener( 'pointermove', onPointerMove );
 				document.addEventListener( 'pointerup', onPointerUp );
 
@@ -417,19 +417,6 @@
 				pointerY = event.clientY - windowHalfY;
 				targetRotation = targetRotationOnPointerDown + ( pointerX - pointerXOnPointerDown ) * 0.02;
 				targetRotationY = targetRotationOnPointerDownY + ( pointerY - pointerYOnPointerDown ) * 0.02;
-
-				const intersects = raycaster.intersectObjects( group2.children );
-
-				for ( let i = 0; i < intersects.length; i ++ ) {
-
-					if (intersects[i].object.type === 'circle'){
-
-						intersects[i].object.material.color.set(0xA6FFFF);
-						
-					}
-
-				}
-
 
 			}
 
@@ -488,20 +475,20 @@
 				renderer.render( scene, camera );
 
 			}
-
 			
 			function onMouseMove( event ) {
 
 				const intersects = raycaster.intersectObjects( group2.children );
 
-				if (intersects.length > 0){
-					document.body.style.cursor = 'pointer';
-				} else {
-					document.body.style.cursor = 'default';
+				for ( var i = 0; i < intersects.length; i++) {
+					if (intersects[i].object.type === 'circle') {
+						document.body.style.cursor = 'pointer';
+						break;
+					} else {
+						document.body.style.cursor = 'default';
+					}
 				}
 
-				
-				// mouse.container.style.cursor = 'pointer';
 				mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
 				mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
 				raycaster.setFromCamera( mouse, camera );
