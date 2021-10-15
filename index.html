@@ -189,15 +189,14 @@
 				plane.position.y = 100;
 				plane.rotation.x = - Math.PI / 2;
 				scene.add( plane );
-
 				BBox = plane.geometry;
 				BBox.computeBoundingBox();
 				planeMinX = BBox.boundingBox.min.x;
 				planeMaxX = BBox.boundingBox.max.x;
 				planeMinY = BBox.boundingBox.min.y;
 				planeMaxY = BBox.boundingBox.max.y;
-				console.log(planeMinX, planeMaxX, planeMinY, planeMaxY);
-				console.log(BBox);
+				// console.log(planeMinX, planeMaxX, planeMinY, planeMaxY);
+				// console.log(BBox);
 
 				const circle = new THREE.Mesh(
 					new THREE.CircleGeometry( 180, 300 ),
@@ -432,6 +431,7 @@
 					if (intersects[i].object.type === 'circle'){
 
 						intersects[i].object.material.color.set(0xA6FFFF);
+						document.body.style.cursor = 'default';
 						window.open(intersects[i].object.url, "_blank").focus();
 					}
 
@@ -443,7 +443,6 @@
 			}
 
 			function animate() {
-
 				currentTime = new Date();
 				hour = (currentTime.getHours() % 12) * Math.PI / 6;
 				minute = currentTime.getMinutes() * Math.PI / 30;
@@ -463,9 +462,6 @@
 					if (meshPLY.position.z < -400) PLYspeedY = 1 * ( (Math.random() % 15) + 6);
 					if (meshPLY.position.z > 400) PLYspeedY = -1 * ( (Math.random() % 15) + 8);
 
-					console.log('x ', meshPLY.position.x);
-					console.log('y ', meshPLY.position.z);
-
 				}
 				requestAnimationFrame( animate );
 				scene.rotation.x = ( targetRotationY - group.rotation.x ) * 0.05;
@@ -479,14 +475,17 @@
 			function onMouseMove( event ) {
 
 				const intersects = raycaster.intersectObjects( group2.children );
+				if (intersects.length >0) {
 
-				for ( let i = 0; i < intersects.length; i++) {
-					if (intersects[i].object.type === 'circle') {
-						document.body.style.cursor = 'pointer';
-						break;
-					} else {
-						document.body.style.cursor = 'default';
+					for ( let i = 0; i < intersects.length; i++) {
+						if (intersects[i].object.type === 'circle') {
+							document.body.style.cursor = 'pointer';
+							break;
+						} else {
+							document.body.style.cursor = 'default';
+						}
 					}
+
 				}
 
 				mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
